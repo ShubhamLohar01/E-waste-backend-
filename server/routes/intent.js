@@ -5,7 +5,7 @@ import { nextId, PREFIX } from '../utils/idGenerator.js';
 import { verifyAuth, requireRole } from '../middleware/auth.js';
 import { inventory } from '../models/Inventory.js';
 import { users } from '../models/User.js';
-import { haversineKm, sortByDistanceFrom } from '../utils/distance.js';
+import { haversineKm, sortByDistanceFrom, hasRealCoords } from '../utils/distance.js';
 import { notify, notifyMany } from '../services/notificationService.js';
 import { validate, intentSchema } from '../schemas.js';
 import { isS3Configured, uploadDataUrl } from '../services/s3.js';
@@ -141,13 +141,13 @@ router.post('/', verifyAuth, requireRole('small_user'), validate(intentSchema), 
 
     // Notify collectors: nearest 3 if we have coords, otherwise broadcast to all active collectors.
     const activeCollectors = users.filter((u) => u.role === 'local_collector' && u.isActive);
-    const hasIntentCoords = intent.location?.lat != null && intent.location?.lng != null;
+    const hasIntentCoords = hasRealCoords(intent.location);
     let recipients = [];
     let topThree = [];
     if (hasIntentCoords) {
       const ranked = sortByDistanceFrom(
         intent.location,
-        activeCollectors.filter((c) => c.location?.lat != null),
+        activeCollectors.filter((c) => hasRealCoords(c.location)),
         (c) => c.location
       );
       topThree = ranked.slice(0, 3);
